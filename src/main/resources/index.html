@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HelloWorld</title>
+    <link rel="stylesheet" type="text/css" href="/index.css">
+</head>
+<body>
+
+<h2>Hei!</h2>
+<form method="post" action="/addMember">
+    <p>Member name <input name="memberName"></p>
+    <p>Member status: <input name="memberStatus"></p>
+    <p><button>Submit</button></p>
+
+</form>
+<a href="newWorker.html">Add member</a>
+<div id="projectMembers"></div>
+</body>
+<script>
+    fetch("/projectMembers")
+        .then(function(response) {
+            return response.text();
+        }).then(function(text) {
+        document.getElementById("projectMembers").innerHTML = text;
+    });
+</script>
+</html>
