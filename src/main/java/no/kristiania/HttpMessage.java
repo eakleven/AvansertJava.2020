@@ -6,12 +6,25 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class HttpMessage {
-    private String startLine;
+    private final String startLine;
+    private String body;
     private Map<String, String> headers = new HashMap<>();
 
     public HttpMessage(String startLine) {
         this.startLine = startLine;
     }
+    public HttpMessage(Socket socket) throws IOException {
+        startLine = readLine(socket);
+        readHeaders(socket);
+        String contentLength = headers.get("Content-Length");
+        if (contentLength !=null) {
+            body = readBody(socket);
+        }
+        else {
+            body = null;
+        }
+    }
+
 
     public static String readLine(Socket socket) throws IOException {
         StringBuilder line = new StringBuilder();
@@ -77,6 +90,10 @@ public class HttpMessage {
         }
         return body.toString();
 
+    }
+
+    public String getBody() {
+    return body;
     }
 }
 

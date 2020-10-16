@@ -65,7 +65,16 @@ class HttpServerTest {
         QueryString member = new QueryString("");
         member.addParameter("memberName", "Erik");
         member.addParameter("memberStatus", "Student");
-        HttpClient client = new HttpClient("localhost", 10008,"/addMember", "POST", member);
+        HttpClient client = new HttpClient("localhost", 10008,"/api/addMember", "POST", member);
+        assertEquals(200, client.getStatusCode());
         assertEquals(List.of("Erik"), server.getMemberNames());
+    }
+
+    @Test
+    void shouldDisplayExistingProducts() throws IOException{
+        HttpServer httpServer = new HttpServer(10009);
+        httpServer.getMemberNames().add("Erik");
+        HttpClient client = new HttpClient("localhost", 10009, "/api/members");
+        assertEquals("<ul><li>Erik</li></ul>", client.getResponseBody());
     }
 }

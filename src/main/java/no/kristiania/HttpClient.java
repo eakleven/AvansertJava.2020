@@ -6,7 +6,7 @@ import java.net.Socket;
 public class HttpClient {
 
     private String responseBody;
-    private HttpMessage responseMessage;
+    private final HttpMessage httpMessage;
 
     public HttpClient(final String hostname, int port, final String requestTarget) throws IOException {
 
@@ -16,8 +16,8 @@ public class HttpClient {
         requestMessage.setHeaders("Host", hostname);
         requestMessage.write(socket);
 
-        responseMessage = HttpMessage.read(socket);
-        responseBody = responseMessage.readBody(socket);
+        httpMessage = HttpMessage.read(socket);
+        responseBody = httpMessage.readBody(socket);
 
     }
 
@@ -32,7 +32,7 @@ public class HttpClient {
         requestMessage.write(socket);
         socket.getOutputStream().write(requestBody.getBytes());
 
-        responseMessage = HttpMessage.read(socket);
+        httpMessage = HttpMessage.read(socket);
     }
 
 
@@ -41,13 +41,12 @@ public class HttpClient {
     }
 
     public int getStatusCode() {
-        String[] responseLineParts = responseMessage.getStartLine().split(" ");
-        int statusCode = Integer.parseInt(responseLineParts[1]);
-        return statusCode;
+        String[] responseLineParts = httpMessage.getStartLine().split(" ");
+        return Integer.parseInt(responseLineParts[1]);
     }
 
     public String getResponseHeader(String headerName) {
-        return responseMessage.getHeader(headerName);
+        return httpMessage.getHeader(headerName);
 
     }
 
