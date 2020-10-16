@@ -33,79 +33,100 @@ public class HttpServer {
 
 
     private void handleRequest(Socket socket) throws IOException {
-        String requestLine = HttpMessage.readLine(socket);
+        HttpMessage request = new HttpMessage(socket);
+        String requestLine = request.getStartLine();
         System.out.println(requestLine);
+
+        System.out.println("REQUEST " + requestLine);
 
         String requestMethod = requestLine.split(" ")[0];
         String requestTarget = requestLine.split(" ")[1];
 
-        if (requestMethod.equals("POST")) {
-            HttpMessage requestMessage = new HttpMessage(requestLine);
-            requestMessage.readHeaders(socket);
-            QueryString requestForm = new QueryString(requestMessage.readBody(socket));
-            memberNames.add(requestForm.getParameter("memberName"));
-
-
-            writeResponse(socket, "200", "ok");
-
-            return;
-        }
-
-        String statusCode = null;
-        String body = null;
-
-
         int questionPos = requestTarget.indexOf('?');
-        if (questionPos != -1) {
-            QueryString queryString = new QueryString(requestTarget.substring(questionPos + 1));
-            statusCode = queryString.getParameter("status");
-            body = queryString.getParameter("body");
-        } else if (!requestTarget.equals("/echo")) {
-            File targetFile = new File(documentRoot, requestTarget);
 
-            if (!targetFile.exists()) {
-                writeResponse(socket, "404", requestTarget + " not found");
-                return;
-            }
-            HttpMessage responseMessage = new HttpMessage("HTTP/1.1 200 OK");
-            responseMessage.setHeaders("Content-Length", String.valueOf(targetFile.length()));
-            responseMessage.setHeaders("Connection", "close");
-            responseMessage.setHeaders("Content-Type", "text/html");
+        String requestPath = questionPos != -1 ? requestTarget.substring(0, questionPos) : requestTarget;
 
-            String contentType = "text/html";
-            if (targetFile.getName().endsWith(".txt")) {
-                contentType = "text/plain";
-                responseMessage.setHeaders("Content-Type", "text/plain");
-            }
-            else if (targetFile.getName().endsWith(".css")) {
-                contentType = "text/css";
-                responseMessage.setHeaders("Content-Type", "text/css");
-            }
-            responseMessage.write(socket);
+        if (requestMethod.equals("POST")) {
+            QueryString requestForm = new QueryString(request.getBody());
 
-            try (FileInputStream inputStream = new FileInputStream(targetFile)) {
-                inputStream.transferTo(socket.getOutputStream());
-            }
+            memberNames.add(requestForm.getParameter("memberName"));
+            String body = "Okay";
+
+
+            writeResponse(socket, "200", body);
+
             return;
+        } else {
+            if (requestPath.equals("/echo")) {
+                handleEchoRequest(socket, requestTarget, questionPos);
+            } else if (requestPath.equals("/api/members")) {
+                handleGetMembers(socket);
+            } else{
+                handleFileRequest(socket, requestPath);
+            }
         }
-        if (statusCode == null) statusCode = "200";
-        if (body == null) body = "Hello <strong>world</strong>!";
+    }
 
+    private void handleGetMembers(Socket socket) throws IOException {
+        String body = "<ul>";
+        for (String memberName : memberNames) {
+            body += "<li>" + memberName + "</li>";
+        }
+        body += "</ul>";
+        writeResponse(socket, "200", body);
+    }
+
+    private void handleEchoRequest(Socket socket, String requestTarget, int questionPos) throws IOException{
+        String statusCode = "200";
+        String body = "Hello World";
+        if (questionPos != -1){
+            QueryString queryString = new QueryString(requestTarget.substring(questionPos+1));
+            if (queryString.getParameter("status") !=null){
+                statusCode = queryString.getParameter("status");
+            }
+            if (queryString.getParameter("body") != null){
+                body = queryString.getParameter("body");
+            }
+        }
         writeResponse(socket, statusCode, body);
 
     }
 
-    private void writeResponse(Socket clientSocket, String statusCode, String body) throws IOException {
-        String response = "HTTP/1.1 " + statusCode + " OK\r\n" +
-                "Content-Length: " + body.length() + "\r\n" +
-                "Content-Type: text/plain\r\n" +
-                "\r\n" +
-                body;
+    private void handleFileRequest(Socket socket, String requestTarget) throws IOException {
+        File targetFile = new File(documentRoot, requestTarget);
 
-        //clientSocket.getOutputStream().write(response.getBytes());
+        if (!targetFile.exists()) {
+            writeResponse(socket, "404", requestTarget + " not found");
+            return;
+        }
+        HttpMessage responseMessage = new HttpMessage("HTTP/1.1 200 OK");
+        responseMessage.setHeaders("Content-Length", String.valueOf(targetFile.length()));
+        responseMessage.setHeaders("Connection", "close");
+        responseMessage.setHeaders("Content-Type", "text/html");
+
+        String contentType = "text/html";
+        if (targetFile.getName().endsWith(".txt")) {
+            contentType = "text/plain";
+            responseMessage.setHeaders("Content-Type", "text/plain");
+        }
+        else if (targetFile.getName().endsWith(".css")) {
+            contentType = "text/css";
+            responseMessage.setHeaders("Content-Type", "text/css");
+        }
+        responseMessage.write(socket);
+
+        try (FileInputStream inputStream = new FileInputStream(targetFile)) {
+            inputStream.transferTo(socket.getOutputStream());
+        }
+        return;
+    }
+
+    private void writeResponse(Socket clientSocket, String statusCode, String body) throws IOException {
+
 
         HttpMessage responseMessage = new HttpMessage("HTTP/1.1 " + statusCode + " OK");
         responseMessage.setHeaders("Content-Length", String.valueOf(body.length()));
+        responseMessage.setHeaders("Connection", "Close");
         responseMessage.setHeaders("Content-Type", "text/plain");
         responseMessage.write(clientSocket);
         clientSocket.getOutputStream().write(body.getBytes());
@@ -113,6 +134,7 @@ public class HttpServer {
 
 
     public static void main(String[] args) throws IOException {
+        System.out.println("Running");
         HttpServer server = new HttpServer(8080);
         server.setDocumentRoot(new File("src/main/resources/"));
 
